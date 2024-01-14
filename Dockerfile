@@ -14,4 +14,6 @@ COPY . .
 
 RUN composer install
 
+ENV DATABASE_URL=postgres://pageadmin:k2geMneAkUhLdVLBRrLzyQ3D25mZ3NRK@dpg-cm43rja1hbls73ab647g-a.oregon-postgres.render.com:5432/pageanalyzer_7sas
+
 CMD ["bash", "-c", "make start"]
