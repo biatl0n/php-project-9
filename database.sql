@@ -1,1 +1,2 @@
-CREATE TABLE urls (id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY, name varchar(255), created_at timestamp);
+CREATE TABLE urls (id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY, name varchar(255), created_at timestamp);
+CREATE TABLE url_checks (id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY, url_id BIGINT, status_code SMALLINT, h1 varchar, title varchar, description varchar, created_at timestamp);

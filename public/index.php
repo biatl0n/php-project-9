@@ -22,6 +22,10 @@ try {
 $checkSQL = "select exists (select from pg_tables where schemaname = 'public' and tablename = 'urls');";
 $checkResult = $pdo->query($checkSQL)->fetchColumn();
 if (!$checkResult) {
+    try {
+        $pdo->query("DROP TABLE public.urls;");
+        $pdo->query("DROP TABLE public.url_checks;");
+    } catch (\PDOException $e) { }
     $lines = file('../database.sql');
     foreach ($lines as $line) {
         $sql = $line;
@@ -41,8 +45,6 @@ $container->set('flash', function () {
     return new \Slim\Flash\Messages();
 });
 
-
-
 $app = AppFactory::create();
 $app->add(TwigMiddleware::createFromContainer($app));
 $errorMiddleware = $app->addErrorMiddleware(true, true, true);
@@ -57,28 +59,40 @@ $app->get('/', function ($request, $response) {
     return $this->get('view')->render($response, 'index.phtml');
 })->setName('home');
 
-
 $app->get('/urls', function ($request, $response, array $args) use ($router, $pdo) {
-    $allSites = $pdo->query("SELECT id, name FROM urls")->fetchAll();
-    $params = ['allSites' => $allSites];
+    $messages = $this->get('flash')->getMessages();
+    $allSites = $pdo->query("select urls.id, urls.name, max(url_checks.created_at) as max_created_at
+	                            from urls 
+	                            left join url_checks on urls.id=url_checks.url_id
+	                            group by urls.id ORDER BY id DESC;"
+    )->fetchAll();
+    $params = [
+        'allSites' => $allSites,
+        'messages' => $messages
+    ];
     return $this->get('view')->render($response, 'showAll.phtml', $params);
 })->setName('sites');
 
 $app->get('/urls/{id}', function ($request, $response, array $args) use ($router, $pdo) {
     $messages = $this->get('flash')->getMessages();
     $id = (int)$args['id'];
-    $stmt = $pdo->prepare("SELECT * FROM urls WHERE id= ?");
-    $stmt->execute([$id]);
-    if ($stmt->rowCount() < 1) {
+    $stmtSiteInfo = $pdo->prepare("SELECT * FROM urls WHERE id= ?");
+    $stmtSiteInfo->execute([$id]);
+    if ($stmtSiteInfo->rowCount() < 1) {
         throw new \Slim\Exception\HttpNotFoundException($request);
     }
-    $siteInfo = $stmt->fetch();
-
+    $siteInfo = $stmtSiteInfo->fetch();
+ 
+    $stmtSiteChecks = $pdo->prepare("SELECT * FROM url_checks WHERE url_id= ? ORDER BY id DESC");
+    $stmtSiteChecks->execute([$id]);
+    $siteChecks = $stmtSiteChecks->fetchAll();
+    
     $params = [
         'id' => $siteInfo['id'],
         'name' => $siteInfo['name'],
         'created_at' => $siteInfo['created_at'],
-        'messages' => $messages
+        'messages' => $messages,
+        'siteChecks' => $siteChecks
     ];
     return $this->get('view')->render($response, 'show.phtml', $params);
 })->setName('site');
@@ -122,5 +136,12 @@ $app->post('/urls', function ($request, $response) use ($router, $pdo) {
     return $response->withRedirect($url, 302);
 });
 
+$app->post('/urls/{id}/checks', function ($request, $response, $args) use ($router, $pdo) {
+    $stmtCheck = $pdo->prepare("INSERT INTO url_checks (url_id, created_at) VALUES (?, ?)");
+    $stmtCheck->execute([$args['id'], Carbon::now()]);
+    $this->get('flash')->addMessage('success', 'Страница успешно проверена');
+    $url = $router->urlFor('site', ['id' => $args['id']]);
+    return $response->withRedirect($url, 302);
+})->setName('checks');
 
 $app->run();
