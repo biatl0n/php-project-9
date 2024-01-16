@@ -25,7 +25,9 @@ if (!$checkResult) {
     try {
         $pdo->query("DROP TABLE public.urls;");
         $pdo->query("DROP TABLE public.url_checks;");
-    } catch (\PDOException $e) { }
+    } catch (\PDOException $e) {
+        $message = $e->getMessage();
+    }
     $lines = file('../database.sql');
     foreach ($lines as $line) {
         $sql = $line;
@@ -64,8 +66,7 @@ $app->get('/urls', function ($request, $response, array $args) use ($router, $pd
     $allSites = $pdo->query("select urls.id, urls.name, max(url_checks.created_at) as max_created_at
 	                            from urls 
 	                            left join url_checks on urls.id=url_checks.url_id
-	                            group by urls.id ORDER BY id DESC;"
-    )->fetchAll();
+	                            group by urls.id ORDER BY id DESC;")->fetchAll();
     $params = [
         'allSites' => $allSites,
         'messages' => $messages
@@ -82,11 +83,10 @@ $app->get('/urls/{id}', function ($request, $response, array $args) use ($router
         throw new \Slim\Exception\HttpNotFoundException($request);
     }
     $siteInfo = $stmtSiteInfo->fetch();
- 
     $stmtSiteChecks = $pdo->prepare("SELECT * FROM url_checks WHERE url_id= ? ORDER BY id DESC");
     $stmtSiteChecks->execute([$id]);
     $siteChecks = $stmtSiteChecks->fetchAll();
-    
+
     $params = [
         'id' => $siteInfo['id'],
         'name' => $siteInfo['name'],
