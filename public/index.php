@@ -176,7 +176,8 @@ $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($rout
         $description = "";
     }
 
-    $stmtCheck = $pdo->prepare("INSERT INTO url_checks (url_id, created_at, status_code, title, h1, description) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmtCheck = $pdo->prepare("INSERT INTO url_checks (url_id, created_at, status_code, title, h1, description)
+                                    VALUES (?, ?, ?, ?, ?, ?)");
     $stmtCheck->execute([$args['id'], Carbon::now(), $statusCode, $title, $h1, $description]);
     $this->get('flash')->addMessage('success', 'Страница успешно проверена');
     $url = $router->urlFor('site', ['id' => $args['id']]);
