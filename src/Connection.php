@@ -2,19 +2,19 @@
 
 namespace Hexlet\Code;
 
-final class Connection {
+final class Connection
+{
 
     private static ?Connection $conn = null;
 
     public function connect()
     {
         $opt = array(
-            \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION, 
+            \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
             \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC
         );
-    
-        $databaseUrl = parse_url(getenv('DATABASE_URL', true));
-    
+
+        $databaseUrl = parse_url(getenv('DATABASE_URL', true));    
         $host = $databaseUrl['host'];
         $port = $databaseUrl['port'];
         $user = $databaseUrl['user'];
@@ -35,6 +35,5 @@ final class Connection {
 
     protected function __construct()
     {
-
     }
 }
