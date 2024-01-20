@@ -13,6 +13,10 @@ final class Connection
             \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC
         );
 
+        if (!is_string(getenv('DATABASE_URL', true))) {
+            return null;
+        }
+
         $databaseUrl = parse_url(getenv('DATABASE_URL', true));
         $host = $databaseUrl['host'];
         $port = $databaseUrl['port'];

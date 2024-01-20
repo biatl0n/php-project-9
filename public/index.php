@@ -33,10 +33,15 @@ if (!$checkResultUrls || !$checkResultUrl_checks) {
     } catch (\PDOException $e) {
         $message = $e->getMessage();
     }
-    $lines = file('../database.sql');
-    foreach ($lines as $line) {
-        $sql = $line;
-        $stmt = $pdo->query($sql);
+    $file = '../database.sql';
+    if (file_exists($file)) {
+        (array)$lines = file($file);
+        foreach ($lines as $line) {
+            $sql = $line;
+            $stmt = $pdo->query($sql);
+        }
+    } else {
+        print_r('Init DB file does not exists');
     }
 }
 //_______________________________________________________
@@ -66,7 +71,7 @@ $app->get('/', function ($request, $response) {
     return $this->get('view')->render($response, 'index.phtml');
 })->setName('home');
 
-$app->get('/urls', function ($request, $response, array $args) use ($router, $pdo) {
+$app->get('/urls', function ($request, $response, array $args) use ($pdo) {
     $messages = $this->get('flash')->getMessages();
     $allSites = $pdo->query("select urls.id, name, url_checks.status_code, url_checks.created_at as max_created_at
                                 from urls
@@ -84,7 +89,7 @@ $app->get('/urls', function ($request, $response, array $args) use ($router, $pd
     return $this->get('view')->render($response, 'showAll.phtml', $params);
 })->setName('sites');
 
-$app->get('/urls/{id}', function ($request, $response, array $args) use ($router, $pdo) {
+$app->get('/urls/{id}', function ($request, $response, array $args) use ($pdo) {
     $messages = $this->get('flash')->getMessages();
     $id = (int)$args['id'];
     $stmtSiteInfo = $pdo->prepare("SELECT * FROM urls WHERE id= ?");
