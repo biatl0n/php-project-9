@@ -4,7 +4,6 @@ namespace Hexlet\Code;
 
 final class Connection
 {
-
     private static ?Connection $conn = null;
 
     public function connect()
@@ -14,7 +13,7 @@ final class Connection
             \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC
         );
 
-        $databaseUrl = parse_url(getenv('DATABASE_URL', true));    
+        $databaseUrl = parse_url(getenv('DATABASE_URL', true));
         $host = $databaseUrl['host'];
         $port = $databaseUrl['port'];
         $user = $databaseUrl['user'];
