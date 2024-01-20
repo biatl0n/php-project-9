@@ -34,14 +34,14 @@ if (!$checkResultUrls || !$checkResultUrl_checks) {
         $message = $e->getMessage();
     }
     $file = '../database.sql';
-    if (file_exists($file)) {
-        (array)$lines = file($file);
-        foreach ($lines as $line) {
-            $sql = $line;
-            $stmt = $pdo->query($sql);
-        }
-    } else {
-        print_r('Init DB file does not exists');
+    if (!file_exists($file)) {
+        print_r('DB file corrupted');
+        return;
+    }
+    $lines = file($file);
+    foreach ($lines as $line) {
+        $sql = $line;
+        $stmt = $pdo->query($sql);
     }
 }
 //_______________________________________________________
