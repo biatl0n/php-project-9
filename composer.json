@@ -12,7 +12,8 @@
         "slim/twig-view": "^3.3",
         "twbs/bootstrap": "^5.3",
         "nesbot/carbon": "^2.72",
-        "vlucas/valitron": "^1.4"
+        "vlucas/valitron": "^1.4",
+        "guzzlehttp/guzzle": "^7.0"
     },
     "license": "MIT",
     "autoload": {

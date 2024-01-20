@@ -1,9 +1,9 @@
 {{ include('html.phtml') }}
 <body class="min-vh-100 d-flex flex-column">
 {{ include('header.phtml') }}
-{% for mMessages in messages  %}
+{% for key, mMessages in messages  %}
     {% for message in mMessages %}
-        <div class="alert alert-success" role="alert">{{ message|e }}</div>
+        <div {% if key == 'success' %}class="alert alert-success"{% elseif key == 'error' %}class="alert alert-danger"{% endif %} role="alert">{{ message|e }}</div>
     {% endfor %}
 {% endfor %}
     <main class="flex-grow-1">
@@ -46,7 +46,7 @@
                     {% for check in siteChecks %}
                     <tr>
                         <td>{{ check.id }}</td>
-                        <td></td>
+                        <td>{{ check.status_code }}</td>
                         <td></td>
                         <td></td>
                         <td></td>

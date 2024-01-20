@@ -8,6 +8,7 @@ use Slim\Factory\AppFactory;
 use Slim\Views\Twig;
 use Slim\Views\TwigMiddleware;
 use Carbon\Carbon;
+use GuzzleHttp\Client;
 
 session_start();
 
@@ -63,10 +64,15 @@ $app->get('/', function ($request, $response) {
 
 $app->get('/urls', function ($request, $response, array $args) use ($router, $pdo) {
     $messages = $this->get('flash')->getMessages();
-    $allSites = $pdo->query("select urls.id, urls.name, max(url_checks.created_at) as max_created_at
-	                            from urls 
-	                            left join url_checks on urls.id=url_checks.url_id
-	                            group by urls.id ORDER BY id DESC;")->fetchAll();
+    $allSites = $pdo->query("select urls.id, name, url_checks.status_code, url_checks.created_at as max_created_at
+                                from urls
+                                left join url_checks on url_checks.url_id = urls.id 
+                                where url_checks.created_at = (
+                                    select max (created_at)
+                                        from url_checks
+                                        where url_checks.url_id = urls.id
+                                ) or url_checks.created_at is null
+                                order by urls.id desc;")->fetchAll();
     $params = [
         'allSites' => $allSites,
         'messages' => $messages
@@ -137,8 +143,33 @@ $app->post('/urls', function ($request, $response) use ($router, $pdo) {
 });
 
 $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($router, $pdo) {
-    $stmtCheck = $pdo->prepare("INSERT INTO url_checks (url_id, created_at) VALUES (?, ?)");
-    $stmtCheck->execute([$args['id'], Carbon::now()]);
+
+
+    $stmtSiteInfo = $pdo->prepare("SELECT * FROM urls WHERE id= ?");
+    $stmtSiteInfo->execute([$args['id']]);
+    $siteInfo = $stmtSiteInfo->fetch();
+
+    $client = new GuzzleHttp\Client();
+    try {
+        $resp = $client->get($siteInfo['name']);
+        $statusCode = $resp->getStatusCode();
+    } catch (GuzzleHttp\Exception\ConnectException $e) {
+        $this->get('flash')->addMessage('error', 'Произошла ошибка при проверке, не удалось подключиться ');
+        print_r('Error');
+        $url = $router->urlFor('site', ['id' => $args['id']]);
+        return $response->withRedirect($url, 302);
+    }
+
+    // Можно было и curl'ом обойтись...
+    // $ch = curl_init('http://www.example.com/');
+    // curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    // curl_exec($ch);
+    // $stCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    // curl_close($ch);
+    //dump($stCode);
+
+    $stmtCheck = $pdo->prepare("INSERT INTO url_checks (url_id, created_at, status_code) VALUES (?, ?, ?)");
+    $stmtCheck->execute([$args['id'], Carbon::now(), $statusCode]);
     $this->get('flash')->addMessage('success', 'Страница успешно проверена');
     $url = $router->urlFor('site', ['id' => $args['id']]);
     return $response->withRedirect($url, 302);
