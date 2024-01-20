@@ -33,17 +33,21 @@ if (!$checkResultUrls || !$checkResultUrl_checks) {
     } catch (\PDOException $e) {
         $message = $e->getMessage();
     }
+
     $file = '../database.sql';
     try {
         if (!file_exists($file)) {
             throw new Exception("DB file is missing: $file");
+        } else {
+            $lines = file($file);
+            if (is_array($lines) && count($lines) > 0) {
+                foreach ($lines as $line) {
+                    $sql = $line;
+                    $stmt = $pdo->query($sql);
+                }
+            }
         }
-        $lines = file($file);
-        foreach ($lines as $line) {
-            $sql = $line;
-            $stmt = $pdo->query($sql);
-        }
-    } catch(Exception $e) {
+    } catch (Exception $e) {
         echo $e->getMessage();
         exit;
     }
