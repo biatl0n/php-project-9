@@ -9,6 +9,8 @@ use Slim\Views\Twig;
 use Slim\Views\TwigMiddleware;
 use Carbon\Carbon;
 use GuzzleHttp\Client;
+use DiDom\Document;
+use Illuminate\Support\Optional;
 
 session_start();
 
@@ -20,9 +22,11 @@ try {
 }
 
 //Проверяем существование таблицы urls и созадём её если отсутствует
-$checkSQL = "select exists (select from pg_tables where schemaname = 'public' and tablename = 'urls');";
-$checkResult = $pdo->query($checkSQL)->fetchColumn();
-if (!$checkResult) {
+$checkSQLurls = "select exists (select from pg_tables where schemaname = 'public' and tablename = 'urls');";
+$checkSQLurl_checks = "select exists (select from pg_tables where schemaname = 'public' and tablename = 'url_checks');";
+$checkResultUrls = $pdo->query($checkSQLurls)->fetchColumn();
+$checkResultUrl_checks = $pdo->query($checkSQLurl_checks)->fetchColumn();
+if (!$checkResultUrls || !$checkResultUrl_checks) {
     try {
         $pdo->query("DROP TABLE public.urls;");
         $pdo->query("DROP TABLE public.url_checks;");
@@ -104,11 +108,12 @@ $app->get('/urls/{id}', function ($request, $response, array $args) use ($router
 })->setName('site');
 
 $app->post('/urls', function ($request, $response) use ($router, $pdo) {
-    $name =  $request->getParsedBodyParam('url');
+    $name = $request->getParsedBodyParam('url');
+    $name = htmlspecialchars($name['name']);
     $errorText = [];
-    $v = new Valitron\Validator(['website' => $name['name']]);
+    $v = new Valitron\Validator(['website' => $name]);
     $v->rules(['url' => ['website']]);
-    if ($name['name'] === '') {
+    if ($name === '') {
         $errorText[] = 'URL не должен быть пустым';
     } elseif (!$v->validate()) {
         $errorText[] = 'Некорректный URL';
@@ -116,13 +121,13 @@ $app->post('/urls', function ($request, $response) use ($router, $pdo) {
 
     if (count($errorText) > 0) {
         $params = [
-            'name' => $name['name'],
+            'name' => $name,
             'error' => implode(", ", $errorText)
         ];
         return $this->get('view')->render($response, 'index.phtml', $params)->withStatus(422);
     }
 
-    $parsedUrl = parse_url($name['name']);
+    $parsedUrl = parse_url($name);
     $siteName = "{$parsedUrl['scheme']}://{$parsedUrl['host']}";
     $stmtCountID = $pdo->prepare("SELECT COUNT(id) from urls where name = ?");
     $stmtCountID->execute([$siteName]);
@@ -143,33 +148,36 @@ $app->post('/urls', function ($request, $response) use ($router, $pdo) {
 });
 
 $app->post('/urls/{id}/checks', function ($request, $response, $args) use ($router, $pdo) {
-
-
     $stmtSiteInfo = $pdo->prepare("SELECT * FROM urls WHERE id= ?");
     $stmtSiteInfo->execute([$args['id']]);
     $siteInfo = $stmtSiteInfo->fetch();
-
-    $client = new GuzzleHttp\Client();
+    $opts = ['connect_timeout' => 3];
+    $client = new Client();
     try {
-        $resp = $client->get($siteInfo['name']);
+        $resp = $client->get($siteInfo['name'], $opts);
         $statusCode = $resp->getStatusCode();
     } catch (GuzzleHttp\Exception\ConnectException $e) {
-        $this->get('flash')->addMessage('error', 'Произошла ошибка при проверке, не удалось подключиться ');
-        print_r('Error');
+        $this->get('flash')->addMessage('error', 'Произошла ошибка при проверке, не удалось подключиться');
         $url = $router->urlFor('site', ['id' => $args['id']]);
         return $response->withRedirect($url, 302);
     }
 
-    // Можно было и curl'ом обойтись...
-    // $ch = curl_init('http://www.example.com/');
-    // curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    // curl_exec($ch);
-    // $stCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    // curl_close($ch);
-    //dump($stCode);
+    $document = $document = new Document($siteInfo['name'], true);
+    $stmtHead = Optional($document->first('head'));
+    $stmtBody = Optional($document)->first('body');
+    $stmtTitle = optional($stmtHead)->first('title');
+    $title = strip_tags(optional($stmtTitle)->__toString());
+    $stmtH1 = optional($stmtBody)->first('h1');
+    $h1 = strip_tags(optional($stmtH1)->__toString());
+    $stmtDescription = optional($stmtHead)->find('meta[name=description]');
+    if (count($stmtDescription) > 0) {
+        $description = optional($stmtDescription[0])->getAttribute('content');
+    } else {
+        $description = "";
+    }
 
-    $stmtCheck = $pdo->prepare("INSERT INTO url_checks (url_id, created_at, status_code) VALUES (?, ?, ?)");
-    $stmtCheck->execute([$args['id'], Carbon::now(), $statusCode]);
+    $stmtCheck = $pdo->prepare("INSERT INTO url_checks (url_id, created_at, status_code, title, h1, description) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmtCheck->execute([$args['id'], Carbon::now(), $statusCode, $title, $h1, $description]);
     $this->get('flash')->addMessage('success', 'Страница успешно проверена');
     $url = $router->urlFor('site', ['id' => $args['id']]);
     return $response->withRedirect($url, 302);

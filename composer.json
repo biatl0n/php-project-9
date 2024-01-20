@@ -13,7 +13,9 @@
         "twbs/bootstrap": "^5.3",
         "nesbot/carbon": "^2.72",
         "vlucas/valitron": "^1.4",
-        "guzzlehttp/guzzle": "^7.0"
+        "guzzlehttp/guzzle": "^7.0",
+        "imangazaliev/didom": "^2.0",
+        "laravel/helpers": "^1.7"
     },
     "license": "MIT",
     "autoload": {
